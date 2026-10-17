@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroPool — Trust-First Airport Cab Sharing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center">
+
+  <!-- Top Sustainability & Judge Demo Bar -->
+  <div class="w-full bg-emerald-950/90 border-b border-emerald-800 px-4 py-2 text-xs flex flex-wrap justify-between items-center gap-2">
+    <div class="flex items-center gap-3">
+      <span class="bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded">SUSTAINABILITY & SOCIAL IMPACT</span>
+      <span>🌱 <b id="stat-cabs">18</b> Cabs Saved Today</span>
+      <span>🌍 <b id="stat-co2">165.6</b> kg CO₂ Prevented</span>
+      <span>💸 ₹<b id="stat-inr">19,800</b> Saved by Fliers</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="triggerWeeklyMerge()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded font-medium">
+        ✨ Simulate Weekly GenAI Channel Merge
+      </button>
+      <button onclick="triggerGeofenceExit()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1 rounded font-medium">
+        📍 Simulate Leaving Airport Geofence
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile App Shell -->
+  <div class="w-full max-w-md bg-slate-900 border-x border-slate-800 min-h-[92vh] flex flex-col justify-between relative shadow-2xl">
+
+    <!-- App Header -->
+    <header class="p-4 border-b border-slate-800 bg-slate-900/95 sticky top-0 z-20 flex justify-between items-center">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-extrabold tracking-tight text-white">✈️ AeroPool</span>
+          <span id="badge-pnr" class="hidden text-[11px] bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2 py-0.5 rounded-full">PNR Verified</span>
+        </div>
+        <p id="sub-header" class="text-xs text-slate-400">Sit on top of Uber/Ola • Peer-Rated Co-Passengers</p>
+      </div>
+      <div id="pass-badge" class="hidden text-right">
+        <span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-full font-semibold">
+          🔓 ₹25 Pass Active (<span id="pass-timer">60m</span>)
+        </span>
+      </div=
+    </header>
+
+    <!-- SCREEN 1: Mobile OTP Login -->
+    <main id="screen-login" class="p-6 flex-1 flex flex-col justify-center">
+      <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-4">
+        <h2 class="text-lg font-bold">Welcome to AeroPool</h2>
+        <p class="text-xs text-slate-400">Discover PNR-verified, community-rated co-passengers heading to the same neighborhood. Split the Uber, cut emissions.</p>
+        <div>
+          <label class="text-xs text-slate-400">Your Name</label>
+          <input id="inp-name" type="text" value="Ruchir Mehta" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Mobile Number</label>
+          <input id="inp-phone" type="text" value="+91 98765 43210" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm" />
+        </div>
+        <div id="otp-box" class="hidden">
+          <label class="text-xs text-slate-400">Enter 4-Digit OTP (Demo: 1234)</label>
+          <input id="inp-otp" type="text" value="1234" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-emerald-500 rounded-lg text-sm tracking-widest font-bold" />
+        </div>
+        <button id="btn-login" onclick="handleAuthStep()" class="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-sm transition">
+          Send OTP
+        </button>
+      </div>
+    </main>
+
+    <!-- SCREEN 2A: Find a Ride & Boarding Pass Scanner -->
+    <main id="screen-scan" class="hidden p-6 flex-1 flex flex-col justify-center space-y-5">
+      <div class="text-center space-y-2">
+        <div class="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center mx-auto text-3xl">🎫</div>
+        <h2 class="text-xl font-bold">Find a Ride from Arrivals</h2>
+        <p class="text-xs text-slate-400">Scan your Boarding Pass to verify your PNR, flight landing window (&lt; 3 hrs), and Airport GPS presence.</p>
+      </div>
+
+      <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 space-y-3 text-xs">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Detected Airport (GPS):</span>
+          <span class="font-semibold text-emerald-400">📍 BLR Terminal 2 Arrivals</span>
+        </div>
+        <div>
+          <label class="text-slate-400">Simulated Flight & PNR Scan</label>
+          <input id="scan-flight" type="text" value="6E-512 (DEL -> BLR)" class="w-full mt-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-slate-400">PNR Code</label>
+            <input id="scan-pnr" type="text" value="W9X4K2" class="w-full mt-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded uppercase" />
+          </div>
+          <div>
+            <label class="text-slate-400">Landed (mins ago)</label>
+            <input id="scan-mins" type="number" value="25" class="w-full mt-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded" />
+          </div>
+        </div>
+        <div>
+          <label class="text-slate-400">Where in the city are you heading? (Sorts channels by proximity)</label>
+          <select id="scan-dest" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded text-sm"></select>
+        </div>
+        <button onclick="scanAndVerify()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-sm shadow-lg">
+          📷 Scan Boarding Pass & Verify PNR
+        </button>
+      </div>
+    </main>
+
+    <!-- SCREEN 2B: Channels List + DMs Tab -->
+    <main id="screen-hub" class="hidden flex-1 flex flex-col overflow-hidden">
+      <div class="p-3 bg-slate-800/60 border-b border-slate-800 flex items-center justify-between gap-2 text-xs">
+        <div class="truncate">
+          <span class="text-slate-400">Your Drop:</span>
+          <select id="hub-dest-select" onchange="changeUserDest()" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sky-300 font-semibold ml-1"></select>
+        </div>
+        <button onclick="openRateModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg font-semibold shrink-0">
+          🚕 Found a Cab
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex border-b border-slate-800 text-xs font-bold bg-slate-900">
+        <button id="tab-channels" onclick="switchHubTab('channels')" class="flex-1 py-2.5 border-b-2 border-sky-400 text-sky-400">
+          📍 Geo-Channels
+        </button>
+        <button id="tab-dms" onclick="switchHubTab('dms')" class="flex-1 py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+          💬 Direct Messages & Ratings
+        </button>
+      </div>
+
+      <!-- Channels List Container -->
+      <div id="view-channels" class="p-3 space-y-2.5 flex-1 overflow-y-auto pb-20">
+        <div class="flex justify-between items-center text-[11px] text-slate-400 px-1">
+          <span id="sort-caption">Sorted by distance from your drop</span>
+          <span>🛡️ PNR + Peer Rated</span>
+        </div>
+        <div id="channels-container" class="space-y-2.5"></div>
+      </div>
+
+      <!-- Direct Messages Directory Container -->
+      <div id="view-dms" class="hidden p-3 space-y-2.5 flex-1 overflow-y-auto pb-20">
+        <p class="text-xs text-slate-400 px-1">Verified passengers inside BLR Airport. Check their community safety rating before initiating a DM or sharing numbers.</p>
+        <div id="dms-container" class="space-y-2"></div>
+      </div>
+
+      <!-- Floating Circular + Button -->
+      <button onclick="openCreateModal()" title="Create a New Geo-Channel (Free)"
+        class="absolute bottom-5 right-5 w-14 h-14 rounded-full bg-sky-500 hover:bg-sky-400 text-slate-950 text-3xl font-bold shadow-xl flex items-center justify-center">
+        +
+      </button>
+    </main>
+
+    <!-- SCREEN 3: Inside a Channel or 1-on-1 DM Chat -->
+    <main id="screen-chat" class="hidden flex-1 flex flex-col overflow-hidden">
+      <div class="p-3 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <button onclick="closeChat()" class="text-slate-300 hover:text-white text-lg px-1">←</button>
+          <div>
+            <h3 id="chat-title" class="font-bold text-sm"># channel</h3>
+            <p id="chat-subtitle" class="text-[11px] text-slate-400"></p>
+          </div>
+        </div>
+        <button onclick="openRateModal()" class="text-xs bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 rounded-lg font-semibold">
+          🚕 Found Cab
+        </button>
+      </div>
+
+      <!-- Gemini Route & Alternative Channel Suggestion Banner -->
+      <div id="ai-banner" class="bg-indigo-950/80 border-b border-indigo-800/80 p-3 text-xs text-indigo-200 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-indigo-300">✨ Gemini Corridor & Drop-Order Assistant</span>
+          <span id="ai-engine-tag" class="text-[10px] bg-indigo-900 px-1.5 py-0.5 rounded">Google AI</span>
+        </div>
+        <p id="ai-insight-text" class="leading-relaxed">Evaluating route overlap and drop sequence...</p>
+      </div>
+
+      <!-- Messages Feed -->
+      <div id="chat-messages" class="flex-1 p-3 space-y-3 overflow-y-auto"></div>
+
+      <!-- Chat Composer -->
+      <div class="p-3 border-t border-slate-800 bg-slate-900 flex gap-2">
+        <input id="chat-input" type="text" placeholder="Reply or share contact number..."
+          onkeydown="if(event.key==='Enter') sendChatMessage()"
+          class="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs" />
+        <button onclick="sendChatMessage()" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-xl text-xs">
+          Send
+        </button>
+      </div>
+    </main>
+
+    <!-- MODAL 1: Create New Geo-Channel -->
+    <div id="modal-create" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 space-y-4">
+        <h3 class="font-bold text-base">📍 Create a Geo-Channel (Free)</h3>
+        <p class="text-xs text-slate-400">From: <b>BLR Airport (Implicit)</b>. Select your destination area on map to create a channel. Channel stays in our 7-day LRU cache.</p>
+        <div>
+          <label class="text-xs text-slate-400">Select Destination Area on Map</label>
+          <select id="create-dest" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"></select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Initial Broadcast Message (Free to post)</label>
+          <textarea id="create-msg" rows="2" class="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-xs"
+            placeholder="Heading to Hotel Oberoi MG Road with 1 bag. Anyone want to split an Uber?"></textarea>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button onclick="closeCreateModal()" class="px-3 py-2 text-xs text-slate-400">Cancel</button>
+          <button onclick="submitNewChannel()" class="px-4 py-2 bg-sky-500 text-slate-950 font-bold rounded-xl text-xs">
+            Create Channel & Post
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: ₹25 1-Hour All-Channel & DM Access Paywall -->
+    <div id="modal-pay" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4 text-center">
+        <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center mx-auto text-xl font-bold">₹25</div>
+        <h3 class="font-bold text-base">Unlock All Channels & DMs for 1 Hour</h3>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Pay a one-time platform fee of <b>₹25</b> to reply in any Geo-Channel, initiate 1-on-1 DMs with peer-rated passengers, and exchange phone numbers offline. Valid for <b>60 minutes</b> or until you exit the airport premises.
+        </p>
+        <div class="flex gap-2">
+          <button onclick="closePayModal()" class="flex-1 py-2.5 bg-slate-800 rounded-xl text-xs">Not Now</button>
+          <button onclick="confirmPay25()" class="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-xl text-xs">
+            ⚡ Pay ₹25 via UPI
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 3: Post-Ride Co-Passenger Safety Rating Modal -->
+    <div id="modal-rate" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+      <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-sm w-full p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-base text-emerald-400">🛡️ Rate Your Co-Passenger</h3>
+          <span class="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">Trust & Safety</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Leaving a safety & etiquette rating helps future flyers make wise decisions when sharing a cab from arrivals.
+        </p>
+        <div>
+          <label class="text-xs text-slate-400">Select Co-Passenger You Shared With</label>
+          <select id="rate-peer-select" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm"></select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Safety & Reliability Rating</label>
+          <div class="flex gap-2 mt-1.5" id="star-selector">
+            <button onclick="setRatingStars(1)" class="star-btn flex-1 py-1.5 rounded-lg border border-slate-700 text-sm">1★</button>
+            <button onclick="setRatingStars(2)" class="star-btn flex-1 py-1.5 rounded-lg border border-slate-700 text-sm">2★</button>
+            <button onclick="setRatingStars(3)" class="star-btn flex-1 py-1.5 rounded-lg border border-slate-700 text-sm">3★</button>
+            <button onclick="setRatingStars(4)" class="star-btn flex-1 py-1.5 rounded-lg border border-slate-700 text-sm">4★</button>
+            <button onclick="setRatingStars(5)" class="star-btn flex-1 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold border border-amber-400 text-sm">5★</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Safety & Etiquette Endorsement</label>
+          <select id="rate-tag-select" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs">
+            <option value="Safe & Respectful Co-Passenger">🛡️ Safe & Respectful Co-Passenger</option>
+            <option value="Fair & Prompt Bill Split">💸 Fair & Prompt Bill Split</option>
+            <option value="Punctual at Pickup Zone">⏱️ Punctual at Pickup Zone</option>
+            <option value="Verified PNR & Smooth Ride">✈️ Verified PNR & Smooth Ride</option>
+          </select>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="completeRideWithoutRating()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-300">
+            Skip & Exit
+          </button>
+          <button onclick="submitCompanionRating()" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs">
+            ★ Submit Rating & Finish
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let currentUser = null;
+    let destinationsMap = {};
+    let cachedPassengers = [];
+    let otpSent = false;
+    let activeChatMode = null;
+    let activeChannelId = null;
+    let activePeerId = null;
+    let pendingMessageText = null;
+    let selectedStars = 5;
+
+    async function handleAuthStep() {
+      if (!otpSent) {
+        otpSent = true;
+        document.getElementById('otp-box').classList.remove('hidden');
+        document.getElementById('btn-login').innerText = 'Verify OTP & Continue';
+        return;
+      }
+      const name = document.getElementById('inp-name').value;
+      const phone = document.getElementById('inp-phone').value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, phone})
+      });
+      const data = await res.json();
+      currentUser = data.user;
+      destinationsMap = data.destinations;
+      populateDestinationSelects();
+      document.getElementById('screen-login').classList.add('hidden');
+      document.getElementById('screen-scan').classList.remove('hidden');
+    }
+
+    function populateDestinationSelects() {
+      const s1 = document.getElementById('scan-dest');
+      const s2 = document.getElementById('hub-dest-select');
+      const s3 = document.getElementById('create-dest');
+      s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = '';
+      Object.keys(destinationsMap).forEach(k => {
+        s1.innerHTML += `<option value="${k}">${k}</option>`;
+        s2.innerHTML += `<option value="${k}">${k}</option>`;
+        s3.innerHTML += `<option value="${k}">${k}</option>`;
+      });
+    }
+
+    async function scanAndVerify() {
+      const pnr = document.getElementById('scan-pnr').value;
+      const flight = document.getElementById('scan-flight').value;
+      const mins = parseInt(document.getElementById('scan-mins').value || '25');
+      const dest = document.getElementById('scan-dest').value;
+
+      const res = await fetch('/api/verify-boarding-pass', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          pnr, flight,
+          landed_mins_ago: mins,
+          at_airport: true,
+          dest_name: dest
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail);
+        return;
+      }
+      const data = await res.json();
+      currentUser = data.user;
+      document.getElementById('badge-pnr').classList.remove('hidden');
+      document.getElementById('badge-pnr').innerText = `${currentUser.flight} • ★ ${currentUser.rating_avg}`;
+      document.getElementById('hub-dest-select').value = currentUser.dest_name;
+      document.getElementById('screen-scan').classList.add('hidden');
+      document.getElementById('screen-hub').classList.remove('hidden');
+      await refreshHubState();
+    }
+
+    async function changeUserDest() {
+      const dest = document.getElementById('hub-dest-select').value;
+      await fetch(`/api/set-destination?user_id=${currentUser.id}&dest_name=${encodeURIComponent(dest)}`, {method: 'POST'});
+      await refreshHubState();
+    }
+
+    async function refreshHubState() {
+      if (!currentUser) return;
+      const res = await fetch(`/api/state?user_id=${currentUser.id}`);
+      const data = await res.json();
+      currentUser = data.user;
+      cachedPassengers = data.active_passengers;
+
+      document.getElementById('stat-cabs').innerText = data.impact.cabs_saved;
+      document.getElementById('stat-co2').innerText = data.impact.co2_saved_kg;
+      document.getElementById('stat-inr').innerText = data.impact.money_saved_inr.toLocaleString();
+
+      const passBadge = document.getElementById('pass-badge');
+      if (currentUser.has_active_pass) {
+        passBadge.classList.remove('hidden');
+        document.getElementById('pass-timer').innerText = `${Math.ceil(currentUser.pass_Seconds_left / 60)}m`;
+      } else {
+        passBadge.classList.add('hidden');
+      }
+
+      document.getElementById('sort-caption').innerText = `Sorted by ${data.sort_basis}`;
+
+      // Render Channels with Sender Star Ratings
+      const chBox = document.getElementById('channels-container');
+      chBox.innerHTML = '';
+      data.channels.forEach(c => {
+        const lastMsg = c.messages.length ? c.messages[c.messages.length - 1] : null;
+        const ratingBadge = lastMsg && lastMsg.sender_rating
+          ? `<span class="text-amber-300 font-semibold">★ ${lastMsg.sender_rating}</span>`
+          : '';
+        chBox.innerHTML += `
+          <div onclick="openChannel('${c.id}')" class="p-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 cursor-pointer transition space-y-1.5">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="font-bold text-sm text-sky-400">${c.name}</span>
+                <p class="text-xs text-slate-300 font-medium">${c.area_label}</p>
+              </div>
+              <div class="text-right">
+                <span class="text-[11px] bg-slate-900 border border-slate-700 px-2 py-0.5 rounded-full text-emerald-300 font-semibold">
+                  ${c.dist_from_ref_km} km away
+                </span>
+                <p class="text-[10px] text-slate-400 mt-1">👥 ${c.active_count} active at airport</p>
+              </div>
+            </div>
+            ${lastMsg ? `<p class="text-xs text-slate-400 truncate">💬 <b>${lastMsg.sender_name}</b> ${ratingBadge}:${lastMsg.text}</p>` : ''}
+          </div>
+        `;
+      });
+
+      // Render DMs Directory with Safety Ratings & Endorsement Tags
+      const dmBox = document.getElementById('dms-container');
+      dmBox.innerHTML = '';
+      data.active_passengers.forEach(p => {
+        const tagsHtml = (p.safety_tags || []).slice(0, 2).map(t =>
+          `<span class="text-[10px] bg-slate-900 border border-slate-700 text-slate-300 px-1.5 py-0.5 rounded">${t}</span>`
+        ).join(' ');
+        dmBox.innerHTML += `
+          <div onclick="openDM('${p.id}', '${p.name}', '${p.flight}', ${p.rating_avg}, ${p.rating_count})" class="p-3 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700 flex justify-between items-center cursor-pointer">
+            <div class="space-y-1">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-sm text-white">${p.name}</span>
+                <span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded font-bold">
+                  ★ ${p.rating_avg} (${p.rating_count})
+                </span>
+              </div>
+              <p class="text-xs text-slate-400">${p.flight} • Drop: <b>${p.dest_name || 'Exploring'}</b></p>
+              <div class="flex gap-1 pt-0.5">${tagsHtml}</div>
+            </div>
+            <span class="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2.5 py-1 rounded-lg font-semibold shrink-0">DM →</span>
+          </div>
+        `;
+      });
+    }
+
+    function switchHubTab(tab) {
+      const isChan = tab === 'channels';
+      document.getElementById('view-channels').classList.toggle('hidden', !isChan);
+      document.getElementById('view-dms').classList.toggle('hidden', isChan);
+      document.getElementById('tab-channels').className = isChan
+        ? 'flex-1 py-2.5 border-b-2 border-sky-400 text-sky-400'
+        : 'flex-1 py-2.5 border-b-2 border-transparent text-slate-400';
+      document.getElementById('tab-dms').className = !isChan
+        ? 'flex-1 py-2.5 border-b-2 border-sky-400 text-sky-400'
+        : 'flex-1 py-2.5 border-b-2 border-transparent text-slate-400';
+    }
+
+    async function openChannel(cid) {
+      activeChatMode = 'channel';
+      activeChannelId = cid;
+      document.getElementById('screen-hub').classList.add('hidden');
+      document.getElementById('screen-chat').classList.remove('hidden');
+      document.getElementById('ai-banner').classList.remove('hidden');
+
+      await loadChannelView();
+
+      const aiRes = await fetch(`/api/ai-channel-insight?user_id=${currentUser.id}&channel_id=${cid}`);
+      const aiData = await aiRes.json();
+      document.getElementById('ai-insight-text').innerHTML = aiData.insight.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      document.getElementById('ai-engine-tag').innerText = aiData.engine;
+    }
+
+    async function loadChannelView() {
+      const res = await fetch(`/api/state?user_id=${currentUser.id}`);
+      const data = await res.json();
+      const c = data.channels.find(x => x.id === activeChannelId);
+      if (!c) return;
+      document.getElementById('chat-title').innerText = c.name;
+      document.getElementById('chat-subtitle').innerText = `${c.area_label} • ${c.active_count} active at airport`;
+      renderMessages(c.messages, true);
+    }
+
+    async function openDM(peerId, peerName, peerFlight, ratingAvg = 4.9, ratingCount = 10) {
+      activeChatMode = 'dm';
+      activePeerId = peerId;
+      document.getElementById('screen-hub').classList.add('hidden');
+      document.getElementById('screen-chat').classList.remove('hidden');
+      document.getElementById('ai-banner').classList.add('hidden');
+      document.getElementById('chat-title').innerText = `💬 ${peerName} (★ ${ratingAvg})`;
+      document.getElementById('chat-subtitle').innerText = `${peerFlight} • ${ratingCount} verified rides • Share contact in chat`;
+
+      const res = await fetch(`/api/dm?user_id=${currentUser.id}&peer_id=${peerId}`);
+      const data = await res.json();
+      renderMessages(data.messages, false);
+    }
+
+    function renderMessages(msgs, allowDMClick) {
+      const box = document.getElementById('chat-messages');
+      box.innerHTML = '';
+      if (!msgs.length) {
+        box.innerHTML = `<p class="text-xs text-slate-500 text-center my-8">No messages yet. Check co-passenger ★ ratings and start the conversation!</p>`;
+        return;
+      }
+      msgs.forEach(m => {
+        const isMe = m.sender_id === currentUser.id;
+        const ratingPill = m.sender_id !== 'system'
+          ? `<span class="text-amber-300 font-bold ml-1">★ ${m.sender_rating || '5.0'} (${m.sender_rides || 3})</span>`
+          : '';
+        const dmButton = (allowDMClick && !isMe && m.sender_id !== 'system')
+          ? `<button onclick="openDM('${m.sender_id}', '${m.sender_name}', '${m.sender_flight}', ${m.sender_rating || 4.9}, ${m.sender_rides || 8})" class="ml-2 text-[10px] text-sky-400 underline">DM privately</button>`
+          : '';
+        box.innerHTML += `
+          <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+            <div class="text-[10px] text-slate-400 mb-0.5">
+              <b>${m.sender_name}</b> ${ratingPill} • ${m.sender_flight || 'Verified'} • ${m.time} ${dmButton}
+            </div>
+            <div class="max-w-[85%] px-3 py-2 rounded-2xl text-xs ${isMe ? 'bg-sky-500 text-slate-950 font-medium' : 'bg-slate-800 text-slate-100 border border-slate-700'}">
+              ${m.text}
+            </div>
+          </div>
+        `;
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendChatMessage() {
+      const inp = document.getElementById('chat-input');
+      const text = inp.value.trim();
+      if (!text) return;
+
+      if (activeChatMode === 'channel') {
+        const res = await fetch('/api/channels/message', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user_id: currentUser.id, channel_id: activeChannelId, text})
+        });
+        if (res.status === 402) {
+          pendingMessageText = text;
+          document.getElementById('modal-pay').classList.remove('hidden');
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail);
+          return;
+        }
+        inp.value = '';
+        await loadChannelView();
+      } else if (activeChatMode === 'dm') {
+        const res = await fetch('/api/dm/send', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({sender_id: currentUser.id, receiver_id: activePeerId, text})
+        });
+        if (res.status === 402) {
+          pendingMessageText = text;
+          document.getElementById('modal-pay').classList.remove('hidden');
+          return;
+        }
+        const data = await res.json();
+        inp.value = '';
+        renderMessages(data.messages, false);
+      }
+      await refreshHubState();
+    }
+
+    async function confirmPay25() {
+      await fetch('/api/pay-pass', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+      });
+      document.getElementById('modal-pay').classList.add('hidden');
+      await refreshHubState();
+      if (pendingMessageText) {
+        document.getElementById('chat-input').value = pendingMessageText;
+        pendingMessageText = null;
+        await sendChatMessage();
+      }
+    }
+
+    function closePayModal() {
+      document.getElementById('modal-pay').classList.add('hidden');
+    }
+
+    function closeChat() {
+      document.getElementById('screen-chat').classList.add('hidden');
+      document.getElementById('screen-hub').classList.remove('hidden');
+      refreshHubState();
+    }
+
+    function openCreateModal() {
+      document.getElementById('modal-create').classList.remove('hidden');
+    }
+    function closeCreateModal() {
+      document.getElementById('modal-create').classList.add('hidden');
+    }
+
+    async function submitNewChannel() {
+      const area = document.getElementById('create-dest').value;
+      const msg = document.getElementById('create-msg').value;
+      const coords = destinationsMap[area];
+      const res = await fetch('/api/channels/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          area_label: area,
+          lat: coords.lat,
+          lng: coords.lng,
+          first_message: msg
+        })
+      });
+      const data = await res.json();
+      closeCreateModal();
+      document.getElementById('hub-dest-select').value = area;
+      await refreshHubState();
+      openChannel(data.channel.id);
+    }
+
+    function openRateModal() {
+      const sel = document.getElementById('rate-peer-select');
+      sel.innerHTML = '';
+      cachedPassengers.forEach(p => {
+        sel.innerHTML += `<option value="${p.id}">${p.name} (${p.flight} • Current: ★ ${p.rating_avg})</option>`;
+      });
+      setRatingStars(5);
+      document.getElementById('modal-rate').classList.remove('hidden');
+    }
+
+    function setRatingStars(n) {
+      selectedStars = n;
+      const btns = document.querySelectorAll('#star-selector .star-btn');
+      btns.forEach((btn, idx) => {
+        if (idx + 1 <= n) {
+          btn.className = 'star-btn flex-1 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold border border-amber-400 text-sm';
+        } else {
+          btn.className = 'star-btn flex-1 py-1.5 rounded-lg border border-slate-700 text-slate-400 text-sm';
+        }
+      });
+    }
+
+    async function submitCompanionRating() {
+      const targetId = document.getElementById('rate-peer-select').value;
+      const tag = document.getElementById('rate-tag-select').value;
+      if (targetId) {
+        const res = await fetch('/api/rate-companion', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            rater_id: currentUser.id,
+            target_user_id: targetId,
+            stars: selectedStars,
+            safety_tag: tag
+          })
+        });
+        const rData = await res.json();
+        await fetch('/api/leave-or-found-cab?reason=found_cab', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user_id: currentUser.id})
+        });
+        alert(`🛡️ Thank you! Rated ${rData.target_name} (${selectedStars}★). Their updated community trust score is ★ ${rData.new_rating_avg} (${rData.new_rating_count} rides).\n\n🌱 You also saved ~9.2 kg CO₂ and ~₹550!`);
+        document.getElementById('modal-rate').classList.add('hidden');
+        location.reload();
+      }
+    }
+
+    async function completeRideWithoutRating() {
+      await fetch('/api/leave-or-found-cab?reason=found_cab', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+      });
+      document.getElementById('modal-rate').classList.add('hidden');
+      alert('🎉 Awesome! You saved ~9.2 kg CO₂ and ~₹550. You have been removed from active airport channel rosters.');
+      location.reload();
+    }
+
+    async function triggerGeofenceExit() {
+      if (!currentUser) {
+        alert('Log in and scan boarding pass first to test geofence exit.');
+        return;
+      }
+      await fetch('/api/leave-or-found-cab?reason=left_airport', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: currentUser.id})
+      });
+      alert('📍 GPS Geofence Update: You moved outside BLR Airport premises. Your active chat access and markers have been automatically withdrawn.');
+      location.reload();
+    }
+
+    async function triggerWeeklyMerge() {
+      const res = await fetch('/api/weekly-merge-job', {method: 'POST'});
+      const data = await res.json();
+      await refreshHubState();
+      if (data.merged.length) {
+        alert(`🤖 Weekly GenAI Channel Merge Complete! Merged nearby MG Road & Indiranagar channels into: ${data.merged.join(', ')}`);
+      } else {
+        alert('Channels already merged!');
+      }
+    }
+  </script>
+</body>
+</html>
